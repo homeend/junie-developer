@@ -65,24 +65,23 @@ class JunieDeveloperService(private val scope: CoroutineScope) {
         }
         AirJunie.setCommand(command)
         fireChanged()
-        AirJunie.vmOptionOverride()?.let {
-            notify(project, "The IDE was started with -D${AirJunie.registryKey}=$it, which Air prefers over " +
-                "this selection. Remove that VM option to let JunieDeveloper switch.", NotificationType.WARNING)
-        }
+        AirJunie.blocker()?.let { notify(project, it, NotificationType.WARNING) }
         return true
     }
 
     /** Stops Air's pooled agents. */
     fun resetPool(project: Project?) {
-        scope.launch { resetPoolAndReport(project, "Air agent pool was reset.") }
+        scope.launch { resetPoolAndReport(project, "Agent pool reset.") }
     }
 
     /** Returns true when the pool was really reset; [done] leads the message either way. */
     private suspend fun resetPoolAndReport(project: Project?, done: String): Boolean {
         try {
-            AirPoolResetter.resetPool()
-            notify(project, "$done Running agents were stopped; send a new message to start a fresh one.",
-                NotificationType.INFORMATION)
+            val stopped = when (AirPoolResetter.resetPool()) {
+                AirPoolResetter.Scope.JUNIE_ONLY -> "Running Junie agents were stopped"
+                AirPoolResetter.Scope.ALL_AGENTS -> "All running agents were stopped (this Air cannot stop Junie alone)"
+            }
+            notify(project, "$done $stopped; send a new message to start a fresh one.", NotificationType.INFORMATION)
             return true
         } catch (e: CancellationException) {
             throw e

@@ -8,11 +8,16 @@ IntelliJ plugin that switches which Junie build **Air** runs, for debugging Juni
 - **Add Local JAR…** adds a locally built Junie JAR. The JAR is used where it
   lies, so rebuilding it is enough; no need to add it again.
 - **Use Selected Junie** (or double-click a row) points Air at that Junie and
-  resets Air's agent pool, so the next message starts a fresh agent.
+  stops Air's running Junie agents (other agents keep running), so the next
+  message starts a fresh one. Open Junie chats lose their process too; avoid
+  switching while a turn is running.
   The first row, *Default (ACP registry)*, switches back to Air's own Junie.
 - **Reset Agent Pool** does only the reset, e.g. after rebuilding a JAR.
 
 Tool window: **Junie Developer** (bottom). Needs an IDE with Air (2026.3+).
+
+The switch applies to projects that run locally. A project in WSL, Docker, SSH
+or remote development keeps using Air's own Junie.
 
 ## Build
 

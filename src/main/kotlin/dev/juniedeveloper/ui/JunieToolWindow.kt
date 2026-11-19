@@ -104,8 +104,7 @@ class JunieLibraryPanel(private val project: Project) : SimpleToolWindowPanel(tr
         }
         status.text = when {
             !AirJunie.isAirAvailable() -> "The Air plugin is not installed or is disabled in this IDE."
-            AirJunie.vmOptionOverride() != null ->
-                "A -D${AirJunie.registryKey} VM option is set and overrides this selection."
+            AirJunie.blocker() != null -> AirJunie.blocker()
             command.isEmpty() -> "Air uses the default Junie from the ACP registry."
             active != null -> "Air uses: ${active.name}"
             else -> "Air uses a command that is not in this library: $command"
@@ -120,7 +119,7 @@ class JunieLibraryPanel(private val project: Project) : SimpleToolWindowPanel(tr
     private fun actions() = DefaultActionGroup().apply {
         add(action("Use Selected Junie", "Point Air at the selected Junie and restart its agents",
             AllIcons.Actions.Execute, enabled = { selected() != null }) { useSelected() })
-        add(action("Reset Agent Pool", "Stop the agents Air keeps running so the next message starts a fresh one",
+        add(action("Reset Agent Pool", "Stop the Junie agents Air keeps running, so the next message starts a fresh one",
             AllIcons.Actions.Restart) { service.resetPool(project) })
         add(Separator.getInstance())
         add(action("Download Junie Release…", "Search GitHub releases of ${GitHubReleases.REPOSITORY} and download one",
