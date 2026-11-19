@@ -8,8 +8,9 @@ Read from the installed Air plugin `com.intellij.air` 263.7307.291 (class files,
 - Registry keys `air.junie.command.windows` / `air.junie.command.unix`
   (declared in Air's `plugin.xml`, `restartRequired="false"`).
 - Read in `com.intellij.air.backend.junie.common.JunieCliSupport.commandOverride()`,
-  which is called when a command is built, so a change applies to the next agent
-  that starts. No IDE restart.
+  which is called when a command is built, so a change should apply to the next
+  agent that starts, with no IDE restart. This is inferred from the bytecode and
+  the key's `restartRequired="false"`; it has not been observed in a running Air yet.
 - The same key as a **system property** (`-Dair.junie.command.windows=…`) is read
   first and wins over the Registry. JunieDeveloper warns when one is set.
 - The value is an executable path. Air's own description of the key uses a
@@ -52,3 +53,12 @@ Releases of `JetBrains/junie` are packaged apps, one zip per OS/CPU:
 
 Air's own ACP registry installs from a different repository,
 `JetBrains/junie-acp-release`, with the same layout.
+
+## What has and has not been run
+
+- Run for real: release list parsing against the live API, unpacking of the real
+  Windows and Linux zips, the unpacked Linux launcher (`--version`), and the
+  generated Windows `.cmd` launcher with the snapshot JAR on the IDE's own JBR 25
+  (`--version`, path with a space).
+- Never run: everything that needs the IDE, i.e. the Registry switch, the
+  reflective pool reset, the tool window and the download task.

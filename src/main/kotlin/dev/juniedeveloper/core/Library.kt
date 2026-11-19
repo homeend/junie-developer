@@ -85,20 +85,25 @@ class JunieLibrary(val baseDir: Path, private val platform: HostPlatform = HostP
         return entry
     }
 
-    /** Forgets [entry]. A downloaded release is deleted from disk; a local JAR is left alone. */
+    /**
+     * Forgets [entry]. A downloaded release is deleted from disk first, and stays in
+     * the library when that fails (on Windows a still-running Junie locks its files);
+     * a local JAR is left alone.
+     */
     @Synchronized
     fun remove(entry: JunieEntry) {
-        save(entries().filterNot { it.id == entry.id })
         when (entry.kind) {
             EntryKind.RELEASE -> {
                 val dir = Path.of(entry.path).toAbsolutePath().normalize()
                 // only ever delete inside our own versions directory
                 if (dir.startsWith(versionsDir.toAbsolutePath().normalize()) && dir != versionsDir) {
                     dir.toFile().deleteRecursively()
+                    if (dir.exists()) throw IOException("Could not delete $dir. A Junie from it may still be running.")
                 }
             }
             EntryKind.JAR -> Files.deleteIfExists(jarLauncherPath(entry))
         }
+        save(entries().filterNot { it.id == entry.id })
     }
 
     /**

@@ -21,6 +21,7 @@ import dev.juniedeveloper.core.Launchers
 import dev.juniedeveloper.core.ZipExtractor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.nio.file.Files
@@ -32,6 +33,7 @@ class JunieDeveloperService(private val scope: CoroutineScope) {
     val platform: HostPlatform = HostPlatform.current()
     val library = JunieLibrary(JunieLibrary.defaultBaseDir(), platform)
 
+    private val downloading = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val listeners = ContainerUtil.createLockFreeCopyOnWriteList<() -> Unit>()
 
     fun addChangeListener(listener: () -> Unit) { listeners += listener }
@@ -48,55 +50,86 @@ class JunieDeveloperService(private val scope: CoroutineScope) {
 
     /** Points Air at [entry] (null = back to the ACP registry Junie) and restarts its agents. */
     fun activate(entry: JunieEntry?, project: Project?) {
+        if (!select(entry, project)) return
+        val what = entry?.name ?: DEFAULT_JUNIE
+        scope.launch { resetPoolAndReport(project, "Air now uses $what.") }
+    }
+
+    /** Writes the Registry key only; false when [entry] cannot be used. */
+    private fun select(entry: JunieEntry?, project: Project?): Boolean {
         val command = try {
             entry?.let { library.launcherFor(it, fallbackJava()).toString() }
         } catch (e: IOException) {
             notify(project, "Cannot use ${entry?.name}: ${e.message}", NotificationType.ERROR)
-            return
+            return false
         }
         AirJunie.setCommand(command)
         fireChanged()
-        val what = entry?.name ?: "the default Junie from the ACP registry"
         AirJunie.vmOptionOverride()?.let {
-            notify(project, "Selected $what, but the IDE was started with -D${AirJunie.registryKey}=$it, " +
-                "which Air prefers. Remove that VM option to let JunieDeveloper switch.", NotificationType.WARNING)
+            notify(project, "The IDE was started with -D${AirJunie.registryKey}=$it, which Air prefers over " +
+                "this selection. Remove that VM option to let JunieDeveloper switch.", NotificationType.WARNING)
         }
-        resetPool(project, "Air now uses $what.")
+        return true
     }
 
-    /** Stops Air's pooled agents; [done] is the message shown when it worked. */
-    fun resetPool(project: Project?, done: String = "Air agent pool was reset.") {
-        scope.launch {
-            try {
-                AirPoolResetter.resetPool()
-                notify(project, "$done Running agents were stopped; send a new message to start a fresh one.",
-                    NotificationType.INFORMATION)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: AirPoolResetter.PoolResetUnavailable) {
-                LOG.warn(e)
-                notify(project, "$done The agent pool could not be reset automatically (${e.message}). " +
-                    MANUAL_RESET, NotificationType.WARNING)
-            } catch (e: Throwable) {
-                LOG.warn("Air pool reset failed", e)
-                notify(project, "$done Resetting the agent pool failed: ${e.message ?: e.javaClass.simpleName}. " +
-                    MANUAL_RESET, NotificationType.WARNING)
-            }
+    /** Stops Air's pooled agents. */
+    fun resetPool(project: Project?) {
+        scope.launch { resetPoolAndReport(project, "Air agent pool was reset.") }
+    }
+
+    /** Returns true when the pool was really reset; [done] leads the message either way. */
+    private suspend fun resetPoolAndReport(project: Project?, done: String): Boolean {
+        try {
+            AirPoolResetter.resetPool()
+            notify(project, "$done Running agents were stopped; send a new message to start a fresh one.",
+                NotificationType.INFORMATION)
+            return true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: AirPoolResetter.PoolResetUnavailable) {
+            LOG.warn(e)
+            notify(project, "$done The agent pool could not be reset automatically (${e.message}). " +
+                MANUAL_RESET, NotificationType.WARNING)
+        } catch (e: Throwable) {
+            LOG.warn("Air pool reset failed", e)
+            notify(project, "$done Resetting the agent pool failed: ${e.message ?: e.javaClass.simpleName}. " +
+                MANUAL_RESET, NotificationType.WARNING)
         }
+        return false
     }
 
     fun addJar(jar: Path): JunieEntry = library.addJar(jar).also { fireChanged() }
 
+    /**
+     * Removes [entry] in the background. If Air is running it, Air is switched back
+     * to the default Junie and its agents are stopped first, because a running Junie
+     * keeps its files locked on Windows.
+     */
     fun remove(entry: JunieEntry, project: Project?) {
-        if (activeEntry()?.id == entry.id) activate(null, project)
-        library.remove(entry)
-        fireChanged()
+        scope.launch(Dispatchers.IO) {
+            if (activeEntry()?.id == entry.id) {
+                AirJunie.setCommand(null)
+                fireChanged()
+                resetPoolAndReport(project, "Air now uses $DEFAULT_JUNIE.")
+            }
+            try {
+                library.remove(entry)
+            } catch (e: IOException) {
+                notify(project, "${entry.name} was not removed. ${e.message} Reset the agent pool and try again.",
+                    NotificationType.ERROR)
+            }
+            fireChanged()
+        }
     }
 
     /** Downloads and unpacks [release] for this machine in a cancellable background task. */
     fun download(release: JunieRelease, project: Project?, onInstalled: (JunieEntry) -> Unit = {}) {
         val asset = release.assetFor(platform) ?: run {
             notify(project, "Release ${release.tag} has no build for ${platform.os}-${platform.arch}.", NotificationType.ERROR)
+            return
+        }
+        if (!downloading.add(asset.name)) {
+            notify(project, "Junie ${release.tag} is already being downloaded.", NotificationType.INFORMATION)
             return
         }
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Downloading Junie ${release.tag}", true) {
@@ -132,6 +165,8 @@ class JunieDeveloperService(private val scope: CoroutineScope) {
                 }
             }
 
+            override fun onFinished() { downloading.remove(asset.name) }
+
             override fun onThrowable(error: Throwable) {
                 LOG.warn("Junie download failed", error)
                 notify(project, "Downloading Junie ${release.tag} failed: ${error.message}", NotificationType.ERROR)
@@ -153,6 +188,7 @@ class JunieDeveloperService(private val scope: CoroutineScope) {
 
     companion object {
         private val LOG = logger<JunieDeveloperService>()
+        private const val DEFAULT_JUNIE = "the default Junie from the ACP registry"
         private const val MANUAL_RESET =
             "Reset it by hand: Find Action > Debug ACP Chat > Agent Pool > Reset Pool (needs idea.is.internal=true)."
 

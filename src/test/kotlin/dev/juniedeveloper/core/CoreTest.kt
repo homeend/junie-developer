@@ -167,6 +167,7 @@ class CoreTest {
         library.remove(entry)
         assertFalse(dir.exists())
         assertTrue(library.versionsDir.exists())
+        assertTrue(library.entries().isEmpty())
 
         // an entry pointing outside the library is forgotten, never deleted
         val outside = tmp.newFolder("precious").toPath()

@@ -43,7 +43,7 @@ class ReleaseBrowserDialog(private val project: Project) : DialogWrapper(project
     private var loading = false
 
     private val search = SearchTextField(false)
-    private val channel = ComboBox(arrayOf(ALL_CHANNELS, "nightly", "eap", "release"))
+    private val channel = ComboBox(arrayOf(ALL_CHANNELS))
     private val listModel = CollectionListModel<JunieRelease>()
     private val list = JBList(listModel)
     private val status = JBLabel(" ")
@@ -107,6 +107,14 @@ class ReleaseBrowserDialog(private val project: Project) : DialogWrapper(project
         }
     }
 
+    /** The channel choices are whatever the loaded releases actually contain. */
+    private fun syncChannels() {
+        val wanted = channel.selectedItem
+        val known = (0 until channel.itemCount).map { channel.getItemAt(it) }
+        loaded.values.mapNotNull { it.channel }.distinct().sorted().filterNot { it in known }.forEach { channel.addItem(it) }
+        channel.selectedItem = wanted
+    }
+
     private fun applyFilter() {
         val keep = list.selectedValue?.tag
         val shown = visible()
@@ -166,7 +174,7 @@ class ReleaseBrowserDialog(private val project: Project) : DialogWrapper(project
             val result = runCatching(work)
             ApplicationManager.getApplication().invokeLater({
                 loading = false
-                result.onSuccess { it() }
+                result.onSuccess { it(); syncChannels() }
                 applyFilter()
                 result.onFailure { status.text = "GitHub request failed: ${it.message}" }
             }, modality)
