@@ -13,13 +13,21 @@ if [ -z "${JAVA_HOME:-}" ]; then
 fi
 rm -f build/distributions/*.zip
 ./gradlew buildPlugin
-echo
-echo "Distribution ready:"
-ls -1 build/distributions/*.zip
-echo 'Install via: Settings > Plugins > gear icon > "Install Plugin from Disk..."'
+ZIP="$(ls -1 "$PWD"/build/distributions/*.zip)"
+DEPLOYED=""
 if [ -n "$TARGET_DIR" ]; then
     mkdir -p "$TARGET_DIR"
+    TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
     rm -f "$TARGET_DIR"/junie-developer-*.zip
-    cp build/distributions/*.zip "$TARGET_DIR"/
-    echo "Deployed to $TARGET_DIR"
+    cp "$ZIP" "$TARGET_DIR"/
+    DEPLOYED="$TARGET_DIR/$(basename "$ZIP")"
 fi
+
+echo
+echo "Plugin built:"
+echo "  $ZIP"
+if [ -n "$DEPLOYED" ]; then
+    echo "Copied to:"
+    echo "  $DEPLOYED"
+fi
+echo 'Install via: Settings > Plugins > gear icon > "Install Plugin from Disk..."'
