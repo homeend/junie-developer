@@ -19,6 +19,16 @@ Tool window: **Junie Developer** (bottom). Needs an IDE with Air (2026.2 or newe
 The switch applies to projects that run locally. A project in WSL, Docker, SSH
 or remote development keeps using Air's own Junie.
 
+## GitHub access
+
+The plugin does not need the `gh` command-line tool or a GitHub account. It reads
+the public releases of `JetBrains/junie` over HTTPS directly.
+
+Without a token, GitHub allows 60 requests an hour per network address, which is
+enough for normal use. If you hit that limit, create a personal access token (no
+scopes needed for public releases) and enter it with the **GitHub Token…** button
+in the tool window. It is stored in the IDE password safe.
+
 ## Build
 
     ./test.sh                      # unit tests
