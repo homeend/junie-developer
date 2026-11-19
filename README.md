@@ -35,6 +35,12 @@ If a direct request or download still fails, the plugin repeats it through the
 GitHub CLI itself (`gh api`, `gh release download`), so a working `gh` is enough
 even where direct access is refused.
 
+`gh` does not have to be on the IDE's PATH (an IDE started from the desktop
+often has a shorter PATH than a terminal): the plugin also looks in the usual
+install locations and asks your login shell. Check the login with
+`gh auth status`. If `gh` cannot be found, the error in the download dialog
+says so.
+
 ## Build
 
     ./test.sh                      # unit tests
