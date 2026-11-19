@@ -21,7 +21,7 @@ Read from the installed Air plugin `com.intellij.air` 263.7307.291 (class files,
 - The pool is the application service `com.intellij.air.acp.pool.AcpAgentClientPool`
   (module `intellij.air.backend.acp`).
 - The "Reset Pool" button (Debug ACP Chat > Agent Pool) goes
-  `AcpDebugAgentPanel.resetPool` → RPC `AcpDebugBackendApi.resetPool` →
+  `AcpDebugAgentPoolPanel.resetPool` → RPC `AcpDebugBackendApi.resetPool` →
   `AcpDebugBackendApiImpl.resetPool()` →
   `AcpAgentClientPoolDebugKt.evictAcpAgentClientPool(agentId = null)` →
   `AcpAgentClientPool.evictAll()`.
