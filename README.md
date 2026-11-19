@@ -21,13 +21,15 @@ or remote development keeps using Air's own Junie.
 
 ## GitHub access
 
-The plugin does not need the `gh` command-line tool or a GitHub account. It reads
-the public releases of `JetBrains/junie` over HTTPS directly.
+Releases of `JetBrains/junie` are public, so no account is strictly needed. But
+GitHub allows only 60 anonymous requests an hour per network address, and a
+shared office or VPN address is often already over that limit, which shows up
+as an error 403. So a login is recommended. The plugin uses the first of:
 
-Without a token, GitHub allows 60 requests an hour per network address, which is
-enough for normal use. If you hit that limit, create a personal access token (no
-scopes needed for public releases) and enter it with the **GitHub Token…** button
-in the tool window. It is stored in the IDE password safe.
+1. a token entered with the **GitHub Token…** button (stored in the IDE
+   password safe; no scopes needed),
+2. the `GH_TOKEN` or `GITHUB_TOKEN` environment variable,
+3. the GitHub CLI login, when `gh` is installed and `gh auth login` was done.
 
 ## Build
 

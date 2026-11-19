@@ -197,4 +197,14 @@ class CoreTest {
         }
         return file
     }
+
+    @Test fun `github errors say what to do`() {
+        val limited = dev.juniedeveloper.GitHubReleases.describeFailure(403,
+            """{"message":"API rate limit exceeded for 1.2.3.4.","documentation_url":"x"}""", "0", hadToken = false)
+        assertTrue(limited, limited.startsWith("GitHub answered 403: API rate limit exceeded"))
+        assertTrue(limited, limited.contains("gh auth login"))
+        val html = dev.juniedeveloper.GitHubReleases.describeFailure(403, "<html>Blocked by proxy</html>", null, hadToken = false)
+        assertTrue(html, html.contains("Blocked by proxy") && !html.contains("gh auth login"))
+        assertEquals("GitHub answered 500.", dev.juniedeveloper.GitHubReleases.describeFailure(500, "", null, hadToken = true))
+    }
 }

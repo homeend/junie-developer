@@ -167,6 +167,7 @@ class ReleaseBrowserDialog(private val project: Project) : DialogWrapper(project
     /** Runs [work] off the EDT; the block it returns is applied on the EDT. */
     private fun background(message: String, work: () -> (() -> Unit)) {
         loading = true
+        status.toolTipText = null
         status.text = message
         more.isEnabled = false
         val modality = ModalityState.stateForComponent(rootPane)
@@ -176,7 +177,11 @@ class ReleaseBrowserDialog(private val project: Project) : DialogWrapper(project
                 loading = false
                 result.onSuccess { it(); syncChannels() }
                 applyFilter()
-                result.onFailure { status.text = "GitHub request failed: ${it.message}" }
+                result.onFailure {
+                    // long, so it goes in the tooltip too; the label alone would cut it off
+                    status.text = it.message ?: it.toString()
+                    status.toolTipText = it.message
+                }
             }, modality)
         }
     }

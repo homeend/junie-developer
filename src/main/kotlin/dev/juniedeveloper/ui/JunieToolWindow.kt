@@ -128,7 +128,7 @@ class JunieLibraryPanel(private val project: Project) : SimpleToolWindowPanel(tr
         add(action("Remove", "Remove the selected entry; a downloaded release is deleted from disk",
             AllIcons.General.Remove, enabled = { selected()?.entry != null }) { removeSelected() })
         add(Separator.getInstance())
-        add(action("GitHub Token…", "Optional token that lifts GitHub's limit of 60 requests an hour",
+        add(action("GitHub Token…", "Optional: a token for release searches. Without one, the GitHub CLI login is used when gh is installed",
             AllIcons.Nodes.SecurityRole) { editToken() })
         add(action("Refresh", "Reload the list", AllIcons.Actions.Refresh) { reload() })
     }
@@ -159,7 +159,8 @@ class JunieLibraryPanel(private val project: Project) : SimpleToolWindowPanel(tr
     private fun editToken() {
         val hasToken = GitHubReleases.token != null
         val value = Messages.showPasswordDialog(project,
-            "GitHub token for release searches (stored in the IDE password safe)." +
+            "GitHub token for release searches (stored in the IDE password safe).\n" +
+                "Not needed when the GitHub CLI is logged in (gh auth login)." +
                 (if (hasToken) "\nA token is saved. Leave empty and press OK to remove it." else ""),
             "GitHub Token", null) ?: return
         GitHubReleases.token = value
