@@ -1,0 +1,19 @@
+<idea-plugin>
+    <id>dev.juniedeveloper</id>
+    <name>JunieDeveloper</name>
+    <vendor>JunieDeveloper</vendor>
+    <description><![CDATA[
+        Switch the Junie build that Air runs, for debugging Junie.
+        Search and download releases from GitHub, add locally built JARs,
+        pick the active one, and restart Air's pooled agents in one click.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Junie Developer" anchor="bottom" canCloseContents="false"
+                    icon="AllIcons.Toolwindows.ToolWindowBuild"
+                    factoryClass="dev.juniedeveloper.ui.JunieToolWindowFactory"/>
+        <notificationGroup id="JunieDeveloper" displayType="BALLOON"/>
+    </extensions>
+</idea-plugin>
