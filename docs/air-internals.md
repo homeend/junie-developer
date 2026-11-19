@@ -1,7 +1,7 @@
 # What JunieDeveloper relies on inside Air
 
-Two sources: the installed Air plugin `com.intellij.air` 263.7307.291 (class files,
-`javap`), and a read of the Air source at revision `01a5b3679f9d` done by Junie.
+Sources: the installed Air plugins `com.intellij.air` 263.7307.291 and
+262.8665.533 (class files, `javap`; the members used here exist in both), and a read of the Air source at revision `01a5b3679f9d` done by Junie.
 Both agree. Re-check after an Air update if something stops working.
 
 ## Switching the Junie command

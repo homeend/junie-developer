@@ -14,7 +14,7 @@ IntelliJ plugin that switches which Junie build **Air** runs, for debugging Juni
   The first row, *Default (ACP registry)*, switches back to Air's own Junie.
 - **Reset Agent Pool** does only the reset, e.g. after rebuilding a JAR.
 
-Tool window: **Junie Developer** (bottom). Needs an IDE with Air (2026.3+).
+Tool window: **Junie Developer** (bottom). Needs an IDE with Air (2026.2 or newer).
 
 The switch applies to projects that run locally. A project in WSL, Docker, SSH
 or remote development keeps using Air's own Junie.

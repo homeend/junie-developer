@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
@@ -24,11 +25,12 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        // Air ships only for 2026.3+ (its plugin.xml: since-build 263.7307), so that
-        // is the floor here too. No dependency on Air itself: it is reached by
-        // reflection (see AirPoolResetter), which keeps this plugin loadable without it.
-        intellijIdea("2026.3")
+        // Air exists for 2026.2 (262.8665) and 2026.3, so the oldest of those is
+        // the compile base and the floor. No dependency on Air itself: it is reached
+        // by reflection (see AirPoolResetter), which keeps this plugin loadable without it.
+        intellijIdea("2026.2.5")
         testFramework(TestFrameworkType.Platform)
+        pluginVerifier()
     }
     testImplementation("junit:junit:4.13.2")
 }
@@ -39,13 +41,26 @@ intellijPlatform {
         name = "JunieDeveloper"
         version = project.version.toString()
         ideaVersion {
-            sinceBuild = "263"
+            sinceBuild = "262"
             untilBuild = provider { null }
         }
     }
     buildSearchableOptions = false
+    pluginVerification {
+        ides {
+            // both IDE generations that have Air
+            create(IntelliJPlatformType.IntellijIdea, "2026.2.5")
+            create(IntelliJPlatformType.IntellijIdea, "2026.3")
+        }
+    }
 }
 
 kotlin {
     jvmToolchain(21)
+    compilerOptions {
+        // Stay within the Kotlin stdlib bundled with the oldest supported IDE;
+        // unpinned, the 2.3 compiler can emit calls into newer stdlib intrinsics.
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+    }
 }
