@@ -140,7 +140,7 @@ class JunieDeveloperService(private val scope: CoroutineScope) {
                 val target = library.installDirFor(asset)
                 try {
                     indicator.text = "Downloading ${asset.name}"
-                    GitHubReleases.download(asset.url, zip, indicator)
+                    GitHubReleases.download(release.tag, asset, zip, indicator)
                     indicator.checkCanceled()
                     indicator.text = "Unpacking ${asset.name}"
                     staging.toFile().deleteRecursively()

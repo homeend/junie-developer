@@ -31,6 +31,10 @@ as an error 403. So a login is recommended. The plugin uses the first of:
 2. the `GH_TOKEN` or `GITHUB_TOKEN` environment variable,
 3. the GitHub CLI login, when `gh` is installed and `gh auth login` was done.
 
+If a direct request or download still fails, the plugin repeats it through the
+GitHub CLI itself (`gh api`, `gh release download`), so a working `gh` is enough
+even where direct access is refused.
+
 ## Build
 
     ./test.sh                      # unit tests

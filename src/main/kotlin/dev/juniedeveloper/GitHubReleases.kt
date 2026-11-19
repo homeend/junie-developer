@@ -3,13 +3,14 @@ package dev.juniedeveloper
 import com.google.gson.JsonParser
 import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.generateServiceName
-import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.util.ExecUtil
 import com.intellij.ide.passwordSafe.PasswordSafe
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.util.io.HttpRequests
+import com.intellij.openapi.progress.ProcessCanceledException
+import dev.juniedeveloper.core.GhCli
 import dev.juniedeveloper.core.JunieRelease
+import dev.juniedeveloper.core.ReleaseAsset
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.nio.file.Path
@@ -20,6 +21,7 @@ object GitHubReleases {
     const val PAGE_SIZE = 100
     private const val API = "https://api.github.com/repos/$REPOSITORY/releases"
     private val LOG = logger<GitHubReleases>()
+    private val gh = GhCli()
 
     private val tokenAttributes = CredentialAttributes(generateServiceName("JunieDeveloper", "github-token"))
 
@@ -47,10 +49,7 @@ object GitHubReleases {
             System.getenv(name)?.trim()?.takeIf { it.isNotEmpty() }?.let { tokenSource = "\$$name"; return it }
         }
         if (!ghTokenAsked) {
-            ghToken = runCatching {
-                val output = ExecUtil.execAndGetOutput(GeneralCommandLine("gh", "auth", "token"), 10_000)
-                output.stdout.trim().takeIf { output.exitCode == 0 && it.isNotEmpty() }
-            }.onFailure { LOG.info("gh auth token is not available: ${it.message}") }.getOrNull()
+            ghToken = if (gh.isInstalled) gh.authToken() else null
             ghTokenAsked = true
         }
         tokenSource = ghToken?.let { "the GitHub CLI login" }
@@ -59,15 +58,55 @@ object GitHubReleases {
 
     /** One page of releases, newest first. [page] starts at 1. */
     fun page(page: Int): List<JunieRelease> =
-        JunieRelease.parseList(api("$API?per_page=$PAGE_SIZE&page=$page")!!)
+        JunieRelease.parseList(apiWithFallback("?per_page=$PAGE_SIZE&page=$page")!!)
 
     /** The release with exactly this tag, or null when there is none. */
     fun byTag(tag: String): JunieRelease? =
-        api("$API/tags/${java.net.URLEncoder.encode(tag, Charsets.UTF_8)}", notFoundIsNull = true)
+        apiWithFallback("/tags/${java.net.URLEncoder.encode(tag, Charsets.UTF_8)}", notFoundIsNull = true)
             ?.let { JunieRelease.parseOne(it) }
 
-    fun download(url: String, target: Path, indicator: ProgressIndicator) {
-        HttpRequests.request(url).productNameAsUserAgent().saveToFile(target, indicator)
+    /**
+     * Downloads [asset] of the release [tag]. When the direct download fails, the
+     * GitHub CLI fetches it instead (no progress percentage on that route).
+     */
+    fun download(tag: String, asset: ReleaseAsset, target: Path, indicator: ProgressIndicator) {
+        try {
+            HttpRequests.request(asset.url).productNameAsUserAgent().saveToFile(target, indicator)
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: IOException) {
+            if (!gh.isInstalled) throw e
+            LOG.info("Direct download failed (${e.message}), using the GitHub CLI")
+            indicator.text = "Downloading ${asset.name} with the GitHub CLI"
+            indicator.isIndeterminate = true
+            try {
+                gh.downloadAsset(REPOSITORY, tag, asset.name, target) { indicator.isCanceled }
+            } catch (viaGh: IOException) {
+                indicator.checkCanceled()
+                throw IOException("${e.message} The GitHub CLI could not download it either: ${viaGh.message}", e)
+            } finally {
+                indicator.isIndeterminate = false
+            }
+        }
+    }
+
+    /**
+     * Asks GitHub directly and, when that is refused or fails, asks through the
+     * GitHub CLI, which uses its own login and connection settings.
+     */
+    private fun apiWithFallback(pathAndQuery: String, notFoundIsNull: Boolean = false): String? {
+        try {
+            return api(API + pathAndQuery, notFoundIsNull)
+        } catch (e: IOException) {
+            if (!gh.isInstalled) throw e
+            LOG.info("Direct GitHub request failed (${e.message}), using the GitHub CLI")
+            try {
+                return gh.api("repos/$REPOSITORY/releases$pathAndQuery")
+            } catch (viaGh: IOException) {
+                if (notFoundIsNull && viaGh.message.orEmpty().contains("404")) return null
+                throw IOException("${e.message} The GitHub CLI failed too: ${viaGh.message}", e)
+            }
+        }
     }
 
     private fun api(url: String, notFoundIsNull: Boolean = false): String? {
