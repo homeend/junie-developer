@@ -98,13 +98,13 @@ object GitHubReleases {
         try {
             return api(API + pathAndQuery, notFoundIsNull)
         } catch (e: IOException) {
-            if (!gh.isInstalled) throw e
+            if (!gh.isInstalled) throw IOException("${e.message} The GitHub CLI (gh) was not found on this machine.", e)
             LOG.info("Direct GitHub request failed (${e.message}), using the GitHub CLI")
             try {
                 return gh.api("repos/$REPOSITORY/releases$pathAndQuery")
             } catch (viaGh: IOException) {
                 if (notFoundIsNull && viaGh.message.orEmpty().contains("404")) return null
-                throw IOException("${e.message} The GitHub CLI failed too: ${viaGh.message}", e)
+                throw IOException("${e.message} The GitHub CLI (${gh.executable}) failed too: ${viaGh.message}", e)
             }
         }
     }

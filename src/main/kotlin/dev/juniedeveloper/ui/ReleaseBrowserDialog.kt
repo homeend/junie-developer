@@ -78,6 +78,8 @@ class ReleaseBrowserDialog(private val project: Project) : DialogWrapper(project
         top.add(search, BorderLayout.CENTER)
         top.add(channel, BorderLayout.EAST)
         val bottom = JPanel(BorderLayout(JBUI.scale(8), 0))
+        status.setAllowAutoWrapping(true)
+        status.setCopyable(true)
         bottom.add(status, BorderLayout.CENTER)
         bottom.add(more, BorderLayout.EAST)
         return JPanel(BorderLayout(0, JBUI.scale(6))).apply {
@@ -178,9 +180,10 @@ class ReleaseBrowserDialog(private val project: Project) : DialogWrapper(project
                 result.onSuccess { it(); syncChannels() }
                 applyFilter()
                 result.onFailure {
-                    // long, so it goes in the tooltip too; the label alone would cut it off
-                    status.text = it.message ?: it.toString()
-                    status.toolTipText = it.message
+                    // wrapped, so a long explanation does not stretch the dialog
+                    val text = it.message ?: it.toString()
+                    status.text = "<html>" + StringUtil.escapeXmlEntities(text) + "</html>"
+                    status.toolTipText = text
                 }
             }, modality)
         }
